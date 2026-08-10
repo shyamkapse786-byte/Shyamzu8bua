@@ -1,20 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Ganesha AR Overlay</title>
-
-  <!-- Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-
-  <!-- MindAR -->
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Ganesha AR</title>
 
   <style>
     html, body {
       margin: 0;
-      padding: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;
@@ -22,150 +15,111 @@
       font-family: Arial, sans-serif;
     }
 
-    #container {
+    #ar-container {
       width: 100vw;
       height: 100vh;
       position: relative;
     }
 
-    #loading {
+    #message {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       color: white;
-      z-index: 10;
       text-align: center;
-    }
-
-    #hint {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: white;
-      background: rgba(0,0,0,0.5);
-      padding: 10px 16px;
-      border-radius: 12px;
-      font-size: 14px;
       z-index: 10;
     }
   </style>
+
+  <!-- Load libraries -->
+  <script src="https://unpkg.com/three@0.150.1/build/three.min.js"></script>
+  <script src="https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
 </head>
 
 <body>
-  <div id="container">
-    <div id="loading">
+  <div id="ar-container">
+    <div id="message">
       <h2>🙏 Loading AR Experience...</h2>
-      <p>Allow camera access when prompted</p>
-    </div>
-
-    <div id="hint">
-      Point your camera at the Ganesha idol image
+      <p>Please allow camera access</p>
     </div>
   </div>
 
   <script>
-    async function startAR() {
+    window.addEventListener("load", async () => {
       try {
+        // Check if MindAR loaded
+        if (!window.MINDAR || !window.MINDAR.IMAGE) {
+          throw new Error("MindAR library failed to load");
+        }
+
         const mindarThree = new window.MINDAR.IMAGE.MindARThree({
-          container: document.querySelector("#container"),
-          imageTargetSrc: "targets.mind",
-          uiScanning: true,
-          uiLoading: false,
-          uiError: true
+          container: document.querySelector("#ar-container"),
+          imageTargetSrc: "targets.mind"
         });
 
         const { renderer, scene, camera } = mindarThree;
 
-        // -----------------------
-        // LIGHTING
-        // -----------------------
+        // Light
         const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
         scene.add(light);
 
-        // -----------------------
-        // VIDEO SETUP
-        // -----------------------
+        // Create video
         const video = document.createElement("video");
-        video.src = "idol-animation.webm"; // upload this file
+        video.src = "idol-animation.webm";
         video.crossOrigin = "anonymous";
         video.loop = true;
         video.muted = true;
-        video.autoplay = true;
         video.playsInline = true;
         video.setAttribute("webkit-playsinline", "true");
-        video.setAttribute("playsinline", "true");
 
-        // Wait for video to be ready
-        await new Promise((resolve) => {
-          video.addEventListener("loadeddata", resolve, { once: true });
-        });
+        await video.play().catch(() => {});
 
         const texture = new THREE.VideoTexture(video);
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        texture.format = THREE.RGBAFormat;
 
-        // -----------------------
-        // OVERLAY PLANE
-        // -----------------------
-        const geometry = new THREE.PlaneGeometry(1, 1.4);
+        // Overlay plane
+        const plane = new THREE.Mesh(
+          new THREE.PlaneGeometry(1, 1.4),
+          new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+          })
+        );
 
-        const material = new THREE.MeshBasicMaterial({
-          map: texture,
-          transparent: true,
-          side: THREE.DoubleSide
-        });
-
-        const plane = new THREE.Mesh(geometry, material);
-
-        // Adjust overlay position and size
         plane.position.set(0, 0.2, 0);
-        plane.scale.set(1.2, 1.2, 1.2);
 
-        // -----------------------
-        // IMAGE TARGET ANCHOR
-        // -----------------------
+        // Anchor to image target
         const anchor = mindarThree.addAnchor(0);
         anchor.group.add(plane);
 
         anchor.onTargetFound = async () => {
-          console.log("🎯 Target Found");
-          document.getElementById("hint").innerText = "✨ Ganesha animation active";
-
-          try {
-            await video.play();
-          } catch (err) {
-            console.error("Video play failed:", err);
-          }
+          console.log("Target found");
+          document.getElementById("message").style.display = "none";
+          await video.play().catch(() => {});
         };
 
         anchor.onTargetLost = () => {
-          console.log("❌ Target Lost");
-          document.getElementById("hint").innerText = "Point your camera at the Ganesha idol image";
+          console.log("Target lost");
           video.pause();
         };
 
-        // -----------------------
-        // START AR
-        // -----------------------
+        // Start AR
         await mindarThree.start();
 
-        document.getElementById("loading").style.display = "none";
+        document.getElementById("message").innerHTML =
+          "<p>📷 Point camera at the Ganesha idol image</p>";
 
         renderer.setAnimationLoop(() => {
           renderer.render(scene, camera);
         });
 
-      } catch (error) {
-        console.error(error);
-        document.getElementById("loading").innerHTML =
-          "<h2>❌ Failed to start AR</h2><p>" + error.message + "</p>";
+      } catch (err) {
+        console.error(err);
+        document.getElementById("message").innerHTML =
+          "<h3>❌ Failed to start AR</h3><p>" + err.message + "</p>";
       }
-    }
-
-    startAR();
+    });
   </script>
 </body>
 </html>
