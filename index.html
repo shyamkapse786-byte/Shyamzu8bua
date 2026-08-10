@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Simple AR Camera Test</title>
+  <title>Ganesha AR Overlay</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js"></script>
@@ -12,6 +12,7 @@
     body {
       margin: 0;
       overflow: hidden;
+      font-family: Arial, sans-serif;
     }
 
     #msg {
@@ -24,7 +25,7 @@
       padding: 10px 15px;
       border-radius: 10px;
       z-index: 9999;
-      font-family: Arial;
+      text-align: center;
       font-size: 14px;
     }
   </style>
@@ -32,7 +33,7 @@
 
 <body>
 
-  <div id="msg">📷 Allow camera access</div>
+  <div id="msg">📷 Point camera at the Hiro marker</div>
 
   <a-scene
     embedded
@@ -40,17 +41,65 @@
     renderer="logarithmicDepthBuffer: true;"
     arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;">
 
-    <a-marker preset="hiro">
-      <a-box
-        position="0 0.5 0"
-        material="color: orange;"
-        animation="property: rotation; to: 0 360 0; loop: true; dur: 3000">
-      </a-box>
+    <a-assets>
+      <video id="ganeshaVideo"
+             src="ganesha-overlay.mp4"
+             preload="auto"
+             loop
+             muted
+             playsinline
+             webkit-playsinline
+             crossorigin="anonymous">
+      </video>
+    </a-assets>
+
+    <!-- Hiro marker tracking -->
+    <a-marker preset="hiro" id="marker">
+
+      <!-- Video overlay -->
+      <a-video
+        src="#ganeshaVideo"
+        width="1.4"
+        height="1.8"
+        position="0 0.9 0"
+        rotation="-90 0 0">
+      </a-video>
+
     </a-marker>
 
     <a-entity camera></a-entity>
 
   </a-scene>
+
+  <script>
+    const marker = document.querySelector('#marker');
+    const video = document.querySelector('#ganeshaVideo');
+    const msg = document.querySelector('#msg');
+
+    // Mobile browsers require user interaction
+    document.body.addEventListener('click', async () => {
+      try {
+        await video.play();
+        video.pause();
+      } catch (e) {
+        console.log(e);
+      }
+    }, { once: true });
+
+    marker.addEventListener('markerFound', async () => {
+      msg.innerHTML = '✨ Ganesha overlay active';
+      try {
+        await video.play();
+      } catch (e) {
+        console.log(e);
+      }
+    });
+
+    marker.addEventListener('markerLost', () => {
+      msg.innerHTML = '📷 Point camera at the Hiro marker';
+      video.pause();
+    });
+  </script>
 
 </body>
 </html>
