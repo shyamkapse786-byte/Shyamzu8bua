@@ -3,6 +3,18 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AR Test</title>
+  const video = document.createElement("video");
+video.src = "idol-animation.webm";
+video.crossOrigin = "anonymous";
+video.loop = true;
+video.muted = true;
+video.autoplay = true;
+video.playsInline = true;
+video.setAttribute("webkit-playsinline", "true");
+
+await video.play().catch(() => {
+  console.log("Autoplay blocked until target is found");
+});
 </head>
 <body style="font-family:Arial;text-align:center;padding-top:50px;">
   <h1>🎉 GitHub Pages is Working</h1>
