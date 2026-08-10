@@ -1,125 +1,100 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Ganesha AR</title>
 
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
   <style>
-    html, body {
+    body {
       margin: 0;
-      width: 100%;
-      height: 100%;
       overflow: hidden;
-      background: black;
       font-family: Arial, sans-serif;
     }
 
-    #ar-container {
-      width: 100vw;
-      height: 100vh;
-      position: relative;
-    }
-
-    #message {
-      position: absolute;
-      top: 50%;
+    #overlay {
+      position: fixed;
+      top: 10px;
       left: 50%;
-      transform: translate(-50%, -50%);
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
       color: white;
+      padding: 10px 16px;
+      border-radius: 10px;
+      z-index: 9999;
       text-align: center;
-      z-index: 10;
+      font-size: 14px;
     }
   </style>
-
-  <!-- Load libraries -->
-  <script src="https://unpkg.com/three@0.150.1/build/three.min.js"></script>
-  <script src="https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
 </head>
 
 <body>
-  <div id="ar-container">
-    <div id="message">
-      <h2>🙏 Loading AR Experience...</h2>
-      <p>Please allow camera access</p>
-    </div>
+
+  <div id="overlay">
+    📷 Allow camera access and point at the Hiro marker
   </div>
 
+  <a-scene
+    embedded
+    vr-mode-ui="enabled: false"
+    renderer="logarithmicDepthBuffer: true;"
+    arjs="sourceType: webcam; debugUIEnabled: false;">
+
+    <a-assets>
+      <video id="ganeshaVideo"
+             src="idol-animation.mp4"
+             preload="auto"
+             loop
+             muted
+             playsinline
+             webkit-playsinline>
+      </video>
+    </a-assets>
+
+    <!-- Marker -->
+    <a-marker preset="hiro" id="marker">
+      <a-video
+        src="#ganeshaVideo"
+        width="1.2"
+        height="1.6"
+        position="0 0.8 0"
+        rotation="-90 0 0">
+      </a-video>
+    </a-marker>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
   <script>
-    window.addEventListener("load", async () => {
+    const marker = document.querySelector('#marker');
+    const video = document.querySelector('#ganeshaVideo');
+    const overlay = document.querySelector('#overlay');
+
+    marker.addEventListener('markerFound', async () => {
+      overlay.innerHTML = '✨ Ganesha animation active';
       try {
-        // Check if MindAR loaded
-        if (!window.MINDAR || !window.MINDAR.IMAGE) {
-          throw new Error("MindAR library failed to load");
-        }
-
-        const mindarThree = new window.MINDAR.IMAGE.MindARThree({
-          container: document.querySelector("#ar-container"),
-          imageTargetSrc: "targets.mind"
-        });
-
-        const { renderer, scene, camera } = mindarThree;
-
-        // Light
-        const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-        scene.add(light);
-
-        // Create video
-        const video = document.createElement("video");
-        video.src = "idol-animation.webm";
-        video.crossOrigin = "anonymous";
-        video.loop = true;
-        video.muted = true;
-        video.playsInline = true;
-        video.setAttribute("webkit-playsinline", "true");
-
-        await video.play().catch(() => {});
-
-        const texture = new THREE.VideoTexture(video);
-
-        // Overlay plane
-        const plane = new THREE.Mesh(
-          new THREE.PlaneGeometry(1, 1.4),
-          new THREE.MeshBasicMaterial({
-            map: texture,
-            transparent: true,
-            side: THREE.DoubleSide
-          })
-        );
-
-        plane.position.set(0, 0.2, 0);
-
-        // Anchor to image target
-        const anchor = mindarThree.addAnchor(0);
-        anchor.group.add(plane);
-
-        anchor.onTargetFound = async () => {
-          console.log("Target found");
-          document.getElementById("message").style.display = "none";
-          await video.play().catch(() => {});
-        };
-
-        anchor.onTargetLost = () => {
-          console.log("Target lost");
-          video.pause();
-        };
-
-        // Start AR
-        await mindarThree.start();
-
-        document.getElementById("message").innerHTML =
-          "<p>📷 Point camera at the Ganesha idol image</p>";
-
-        renderer.setAnimationLoop(() => {
-          renderer.render(scene, camera);
-        });
-
-      } catch (err) {
-        console.error(err);
-        document.getElementById("message").innerHTML =
-          "<h3>❌ Failed to start AR</h3><p>" + err.message + "</p>";
+        await video.play();
+      } catch (e) {
+        console.log(e);
       }
     });
+
+    marker.addEventListener('markerLost', () => {
+      overlay.innerHTML = '📷 Point at the Hiro marker';
+      video.pause();
+    });
+
+    // Start video on first user interaction (required by mobile browsers)
+    document.body.addEventListener('click', async () => {
+      try {
+        await video.play();
+        video.pause();
+      } catch (e) {}
+    }, { once: true });
   </script>
+
 </body>
 </html>
